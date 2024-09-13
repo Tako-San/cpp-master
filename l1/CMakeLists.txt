@@ -1,2 +1,3 @@
-add_executable(streq streq.cc)
-target_link_libraries(streq PRIVATE cpp-master-settings)
+add_subdirectory(conv-qual)
+add_subdirectory(streq)
+add_subdirectory(cow)
