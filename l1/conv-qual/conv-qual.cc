@@ -84,50 +84,40 @@ template <typename Iter> void print(Iter from, Iter to) {
 enum class CVQual : std::uint8_t { eConst, eNonConst };
 enum class P : std::uint8_t { ePtr, eArr };
 
-class QDecomp final {
-public:
-  QDecomp() = default;
-  QDecomp(std::span<CVQual> cvq, std::span<P> p)
-      : cvq_(cvq.begin(), cvq.end()), p_(p.begin(), p.end()){};
-
-private:
-  std::vector<CVQual> cvq_{};
-  std::vector<P> p_{};
-
-public:
-  const auto &cvq() const { return cvq_; }
-  const auto &p() const { return p_; }
+struct QDecomp final {
+  std::vector<CVQual> cvq{};
+  std::vector<P> p{};
 
   static QDecomp getQualCombinedType(const QDecomp &t1, const QDecomp &t2) {
-    if (t1.cvq_.size() != t2.cvq_.size())
+    if (t1.cvq.size() != t2.cvq.size())
       throw std::runtime_error{"cvq sizes are not equal"};
-    if (t1.p_.size() != t2.p_.size())
+    if (t1.p.size() != t2.p.size())
       throw std::runtime_error{"p sizes are not equal"};
-    auto psize = t1.p_.size();
-    auto cvqsize = t1.cvq_.size();
+    auto psize = t1.p.size();
+    auto cvqsize = t1.cvq.size();
     QDecomp t3{};
 
     for (std::size_t i = 0; i < psize; ++i) {
-      t3.p_.push_back((t1.p_[i] == P::eArr || t2.p_[i] == P::eArr) ? P::eArr
-                                                                   : t1.p_[i]);
+      t3.p.push_back((t1.p[i] == P::eArr || t2.p[i] == P::eArr) ? P::eArr
+                                                                   : t1.p[i]);
     }
 
     for (std::size_t i = 0; i < cvqsize; ++i) {
-      t3.cvq_.push_back(
-          (t1.cvq_[i] == CVQual::eConst || t2.cvq_[i] == CVQual::eConst)
+      t3.cvq.push_back(
+          (t1.cvq[i] == CVQual::eConst || t2.cvq[i] == CVQual::eConst)
               ? CVQual::eConst
               : CVQual::eNonConst);
     }
 
     for (std::size_t i = 0; i < cvqsize; ++i)
-      if (t3.cvq_[i] != t1.cvq_[i] || t3.cvq_[i] != t2.cvq_[i])
+      if (t3.cvq[i] != t1.cvq[i] || t3.cvq[i] != t2.cvq[i])
         for (std::size_t k = 1; k < i; ++k)
-          t3.cvq_[k] = CVQual::eConst;
+          t3.cvq[k] = CVQual::eConst;
 
     for (std::size_t i = 0; i < psize; ++i)
-      if (t3.p_[i] != t1.p_[i] || t3.p_[i] != t2.p_[i])
+      if (t3.p[i] != t1.p[i] || t3.p[i] != t2.p[i])
         for (std::size_t k = 1; k < i; ++k)
-          t3.cvq_[k] = CVQual::eConst;
+          t3.cvq[k] = CVQual::eConst;
 
     return t3;
   }
@@ -176,8 +166,8 @@ int main() try {
   auto t2 = QDecomp::getQDecomp(tok2.begin(), tok2.end());
   auto t3 = QDecomp::getQualCombinedType(t1, t2);
 
-  auto p = t1.p();
-  auto cvq = t1.cvq();
+  auto p = t1.p;
+  auto cvq = t1.cvq;
 
   std::cout << std::endl << "t1" << std::endl;
   for (auto ep : p)
@@ -186,8 +176,8 @@ int main() try {
   for (auto ecvq : cvq)
     std::cout << (int)ecvq << std::endl;
 
-  p = t2.p();
-  cvq = t2.cvq();
+  p = t2.p;
+  cvq = t2.cvq;
 
   std::cout << std::endl << "t2" << std::endl;
   for (auto ep : p)
@@ -196,8 +186,8 @@ int main() try {
   for (auto ecvq : cvq)
     std::cout << (int)ecvq << std::endl;
 
-  p = t3.p();
-  cvq = t3.cvq();
+  p = t3.p;
+  cvq = t3.cvq;
 
   std::cout << std::endl << "t3" << std::endl;
   for (auto ep : p)
@@ -205,8 +195,6 @@ int main() try {
   std::cout << std::endl;
   for (auto ecvq : cvq)
     std::cout << (int)ecvq << std::endl;
-
-
 
   // char test[100] = "heloooooooooooooooooooooooo woooooooooooooooorld";
   // test[10] = 0;
