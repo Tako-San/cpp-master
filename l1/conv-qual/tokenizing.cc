@@ -1,89 +1,103 @@
-#include <algorithm>
-#include <cctype>
-#include <cstdint>
-#include <deque>
-#include <iomanip>
-#include <iostream>
-#include <iterator>
-#include <ranges>
-#include <stdexcept>
 #include <string_view>
 #include <vector>
 
-using namespace std::literals;
+#include "tokenizing.hh"
 
-namespace rng = std::ranges;
-namespace views = rng::views;
+using namespace std::literals;
 
 namespace l1 {
 
-enum class Token : std::uint8_t { eConst, eNonConst, eChar, eArr, ePtr };
-
-template <rng::input_range Range> auto str2tok(Range str) {
-  auto beg = str.begin();
-  auto end = str.end();
-  std::string_view w{};
-
-  std::vector<Token> tokens{};
-  for (auto cur = beg; cur != end; std::advance(cur, w.size())) {
-    if (w = "constchar";
-        rng::equal(cur, std::next(cur, w.size()), w.begin(), w.end()))
-      throw std::runtime_error{"Bad token: constchar"};
-    else if (w = "charconst";
-             rng::equal(cur, std::next(cur, w.size()), w.begin(), w.end()))
-      throw std::runtime_error{"Bad token: charconst"};
-    else if (w = "const";
-             rng::equal(cur, std::next(cur, w.size()), w.begin(), w.end()))
-      tokens.push_back(Token::eConst);
-    else if (w = "char";
-             rng::equal(cur, std::next(cur, w.size()), w.begin(), w.end()))
-      tokens.push_back(Token::eChar);
-    else if (w = "[]";
-             rng::equal(cur, std::next(cur, w.size()), w.begin(), w.end()))
-      tokens.push_back(Token::eArr);
-    else if (w = "*";
-             rng::equal(cur, std::next(cur, w.size()), w.begin(), w.end()))
-      tokens.push_back(Token::ePtr);
-    else {
-      std::string tok{str.begin(), str.end()};
-      throw std::runtime_error{"Unknow token: " + tok};
-    }
-  }
-
+std::vector<Token> tokenize(std::string_view sv) {
+  auto tokens =
+      vws::transform(sv, [](auto c) { return std::isspace(c) ? ' ' : c; }) |
+      vws::split(' ') | vws::filter([](auto w) { return !w.empty(); }) |
+      vws::transform([](auto w) { return str2tok(w); }) | vws::join |
+      rng::to<std::vector>();
   return tokens;
 }
 
-auto tokenize(std::string_view sv) {
-  auto view =
-      views::transform(sv, [](auto c) { return std::isspace(c) ? ' ' : c; }) |
-      views::split(' ') | views::filter([](auto w) { return !w.empty(); }) |
-      views::transform([](auto w) { return str2tok(w); }) | views::join;
-
-  std::vector<Token> tokens{};
-  rng::copy(view, std::back_inserter(tokens));
-  return tokens;
-}
-
-auto tok2str(auto tok) {
-  switch (tok) {
-  case Token::eConst:
-    return "const";
-  case Token::eNonConst:
-    return "non-const";
-  case Token::eChar:
-    return "char";
-  case Token::eArr:
-    return "[]";
-  case Token::ePtr:
-    return "*";
-  default:
-    throw std::runtime_error{"Unknown token"};
-  }
+enum class State : std::uint8_t {
+  eInvalid,
+  eStart,
+  eFinish,
+  eChar,
+  eConst0,
+  eConstChar,
+  eArr,
+  ePtr,
+  ePtrConst
 };
 
-template <rng::input_range Range> void print(Range tokens) {
-  rng::for_each(tokens, [](auto tok) { std::cout << tok2str(tok) << " "; });
-  std::cout << std::endl;
+static void updateState(std::vector<Token> &tokens, State from, State to) {
+  if (from == State::eConstChar &&
+      (to == State::eFinish || to == State::eFinish || to == State::eArr ||
+       to == State::ePtr)) {
+    tokens.push_back(Token::eChar);
+    tokens.push_back(Token::eConst);
+  } else if (from == State::eChar &&
+             (to == State::eArr || to == State::ePtr || to == State::eFinish)) {
+    tokens.push_back(Token::eChar);
+    tokens.push_back(Token::eNonConst);
+  } else if (from == State::eArr && to == State::eFinish) {
+    tokens.push_back(Token::eArr);
+    tokens.push_back(Token::eConst);
+  } else if (from == State::ePtr &&
+             (to == State::ePtr || to == State::eArr || to == State::eFinish)) {
+    tokens.push_back(Token::ePtr);
+    tokens.push_back(Token::eNonConst);
+  } else if (from == State::ePtrConst &&
+             (to == State::ePtr || to == State::eArr || to == State::eFinish)) {
+    tokens.push_back(Token::ePtr);
+    tokens.push_back(Token::eConst);
+  }
+}
+
+static auto getTable() {
+  std::unordered_map<State, std::unordered_map<Token, State>> table{};
+  table[State::eStart] = {{Token::eChar, State::eChar},
+                          {Token::eConst, State::eConst0}};
+  table[State::eConst0] = {{Token::eChar, State::eConstChar}};
+  table[State::eChar] = {{Token::eArr, State::eArr},
+                         {Token::ePtr, State::ePtr},
+                         {Token::eConst, State::eConstChar},
+                         {Token::eEOF, State::eFinish}};
+  table[State::eConstChar] = {{Token::eArr, State::eArr},
+                              {Token::ePtr, State::ePtr},
+                              {Token::eEOF, State::eFinish}};
+  table[State::ePtr] = {{Token::eConst, State::ePtrConst},
+                        {Token::ePtr, State::ePtr},
+                        {Token::eArr, State::eArr},
+                        {Token::eEOF, State::eFinish}};
+  table[State::ePtrConst] = {{Token::ePtr, State::ePtr},
+                             {Token::eArr, State::eArr},
+                             {Token::eEOF, State::eFinish}};
+  table[State::eArr] = {{Token::eEOF, State::eFinish}};
+  return table;
+}
+
+std::vector<Token> semanticTransform(std::vector<Token> inputTokens) {
+  const auto table = getTable();
+
+  std::vector<Token> tokens{};
+  auto prevState = State::eStart;
+  for (auto token : inputTokens) {
+    auto prevStateIter = table.find(prevState);
+    if (prevStateIter == table.end())
+      throw std::runtime_error{"Invalid state"};
+
+    auto &transitions = prevStateIter->second;
+    auto nextStateIter = transitions.find(token);
+    if (nextStateIter == transitions.end())
+      throw std::runtime_error{"Unknown transition"};
+
+    auto nextState = nextStateIter->second;
+    updateState(tokens, prevState, nextState);
+
+    prevState = nextState;
+  }
+
+  updateState(tokens, prevState, State::eFinish);
+  return tokens;
 }
 
 } // namespace l1
