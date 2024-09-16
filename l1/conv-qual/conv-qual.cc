@@ -21,36 +21,40 @@ struct QDecomp final {
   CV cv0;
 
   template <rng::range Range> static QDecomp Get(Range range) {
+    auto base = range | vws::drop(1) | vws::reverse | vws::drop(1);
+    auto rp = base | vws::stride(2) | vws::transform([](auto token) {
+                if (token == Token::eArr)
+                  return P::eArr;
+                else if (token == Token::ePtr)
+                  return P::ePtr;
+                else
+                  throw std::runtime_error{
+                      fmt::format("Unexpected token: {}", token)};
+              });
+    auto rcv =
+        base | vws::drop(1) | vws::stride(2) | vws::transform([](auto token) {
+          if (token == Token::eConst)
+            return CV::eConst;
+          else if (token == Token::eNonConst)
+            return CV::eNonConst;
+          else
+            throw std::runtime_error{
+                fmt::format("Unexpected token: {}", token)};
+        });
+
     QDecomp res{};
-    for (auto token : range | vws::drop(1) | vws::reverse | vws::drop(1)) {
-      switch (token) {
-      case Token::eArr:
-        res.p.push_back(P::eArr);
-        break;
-      case Token::ePtr:
-        res.p.push_back(P::ePtr);
-        break;
-      case Token::eConst:
-        res.cv.push_back(CV::eConst);
-        break;
-      case Token::eNonConst:
-        res.cv.push_back(CV::eNonConst);
-        break;
-      default:
-        throw std::runtime_error{"Unexpected token"};
-      }
+    for (auto [p, cv] : vws::zip(rp, rcv)) {
+      res.p.push_back(p);
+      res.cv.push_back(cv);
     }
 
-    switch (range.back()) {
-    case Token::eConst:
+    auto cv0 = range.back();
+    if (cv0 == Token::eConst)
       res.cv0 = CV::eConst;
-      break;
-    case Token::eNonConst:
+    else if (cv0 == Token::eNonConst)
       res.cv0 = CV::eNonConst;
-      break;
-    default:
+    else
       throw std::runtime_error{"Unexpected token"};
-    }
 
     return res;
   }
@@ -75,15 +79,13 @@ struct QDecomp final {
       const auto &[cv1, cv2, cv3, p1, p2, p3] = t;
       return (cv3 != cv1) || (cv3 != cv2) || (p3 != p1) || (p3 != p2);
     });
-    std::advance(pos, 1);
+
+    pos = std::next(pos);
 
     auto cst = rng::subrange(reverse.begin(), pos) |
                vws::transform([](const auto &t) { return std::get<2>(t); });
-    auto mut =
-        rng::subrange(pos, reverse.end()) | vws::transform([](const auto &t) {
-          const auto &[cv1, cv2, cv3, p1, p2, p3] = t;
-          return CV::eConst;
-        });
+    auto mut = rng::subrange(pos, reverse.end()) |
+               vws::transform([](const auto &) { return CV::eConst; });
 
     return QDecomp{
         .cv = vws::concat(cst, mut) | vws::reverse | rng::to<std::vector<CV>>,
