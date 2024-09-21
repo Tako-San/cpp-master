@@ -18,48 +18,6 @@ namespace vws = rng::views;
 enum class Token : std::uint8_t { eConst, eChar, eArr, ePtr, eNonConst, eEOF };
 
 std::vector<Token> tokenize(std::string_view sv);
-std::vector<Token> semanticTransform(std::vector<Token> inputTokens);
-
-template <rng::input_range Range> std::vector<Token> str2tok(Range str) {
-  auto beg = str.begin();
-  auto end = str.end();
-
-  std::string_view w{};
-  if (w = "char"; rng::equal(beg, end, w.begin(), w.end()))
-    return {Token::eChar};
-
-  std::vector<Token> tokens{};
-  if (w = "char"; rng::starts_with(beg, end, w.begin(), w.end())) {
-    tokens.push_back(Token::eChar);
-    std::advance(beg, w.size());
-
-    if (w = "*"; rng::starts_with(beg, end, w.begin(), w.end())) {
-      tokens.push_back(Token::ePtr);
-      std::advance(beg, w.size());
-    } else if (w = "[]"; rng::starts_with(beg, end, w.begin(), w.end())) {
-      tokens.push_back(Token::eArr);
-      std::advance(beg, w.size());
-    } else {
-      throw std::runtime_error{"Unknown token in: " +
-                               (str | rng::to<std::string>())};
-    }
-  }
-
-  for (; beg != end; std::advance(beg, w.size())) {
-    if (w = "const"; rng::starts_with(beg, end, w.begin(), w.end())) {
-      tokens.push_back(Token::eConst);
-    } else if (w = "[]"; rng::starts_with(beg, end, w.begin(), w.end())) {
-      tokens.push_back(Token::eArr);
-    } else if (w = "*"; rng::starts_with(beg, end, w.begin(), w.end())) {
-      tokens.push_back(Token::ePtr);
-    } else {
-      throw std::runtime_error{"Unknown token in: " +
-                               (str | rng::to<std::string>())};
-    }
-  }
-
-  return tokens;
-}
 
 } // namespace l1
 

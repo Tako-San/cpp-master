@@ -7,15 +7,6 @@ using namespace std::literals;
 
 namespace l1 {
 
-std::vector<Token> tokenize(std::string_view sv) {
-  auto tokens =
-      vws::transform(sv, [](auto c) { return std::isspace(c) ? ' ' : c; }) |
-      vws::split(' ') | vws::filter([](auto w) { return !w.empty(); }) |
-      vws::transform([](auto w) { return str2tok(w); }) | vws::join |
-      rng::to<std::vector>();
-  return tokens;
-}
-
 enum class State : std::uint8_t {
   eInvalid,
   eStart,
@@ -27,6 +18,101 @@ enum class State : std::uint8_t {
   ePtr,
   ePtrConst
 };
+}
+
+template <>
+struct fmt::formatter<l1::State> : fmt::formatter<fmt::string_view> {
+public:
+  template <typename FormatContext>
+  auto format(l1::State state, FormatContext &ctx) const {
+    fmt::string_view name{};
+    switch (state) {
+    case l1::State::eInvalid:
+      name = "eInvalid";
+      break;
+    case l1::State::eStart:
+      name = "eStart";
+      break;
+    case l1::State::eFinish:
+      name = "eFinish";
+      break;
+    case l1::State::eChar:
+      name = "eChar";
+      break;
+    case l1::State::eConst0:
+      name = "eConst0";
+      break;
+    case l1::State::eConstChar:
+      name = "eConstChar";
+      break;
+    case l1::State::eArr:
+      name = "eArr";
+      break;
+    case l1::State::ePtr:
+      name = "ePtr";
+      break;
+    case l1::State::ePtrConst:
+      name = "ePtrConst";
+      break;
+    default:
+      name = "UNKNOWN";
+      break;
+    }
+    return fmt::formatter<fmt::string_view>::format(name, ctx);
+  }
+};
+
+namespace l1 {
+
+template <rng::input_range Range> std::vector<Token> str2tok(Range str) {
+  auto beg = str.begin();
+  auto end = str.end();
+
+  std::string_view w{};
+  if (w = "char"; rng::equal(beg, end, w.begin(), w.end()))
+    return {Token::eChar};
+
+  std::vector<Token> tokens{};
+  if (w = "char"; rng::starts_with(beg, end, w.begin(), w.end())) {
+    tokens.push_back(Token::eChar);
+    std::advance(beg, w.size());
+
+    if (w = "*"; rng::starts_with(beg, end, w.begin(), w.end())) {
+      tokens.push_back(Token::ePtr);
+      std::advance(beg, w.size());
+    } else if (w = "[]"; rng::starts_with(beg, end, w.begin(), w.end())) {
+      tokens.push_back(Token::eArr);
+      std::advance(beg, w.size());
+    } else {
+      throw std::runtime_error{"Unknown token in: " +
+                               (str | rng::to<std::string>())};
+    }
+  }
+
+  for (; beg != end; std::advance(beg, w.size())) {
+    if (w = "const"; rng::starts_with(beg, end, w.begin(), w.end())) {
+      tokens.push_back(Token::eConst);
+    } else if (w = "[]"; rng::starts_with(beg, end, w.begin(), w.end())) {
+      tokens.push_back(Token::eArr);
+    } else if (w = "*"; rng::starts_with(beg, end, w.begin(), w.end())) {
+      tokens.push_back(Token::ePtr);
+    } else {
+      throw std::runtime_error{"Unknown token in: " +
+                               (str | rng::to<std::string>())};
+    }
+  }
+
+  return tokens;
+}
+
+auto tokenizeInner(std::string_view sv) {
+  auto tokens =
+      vws::transform(sv, [](auto c) { return std::isspace(c) ? ' ' : c; }) |
+      vws::split(' ') | vws::filter([](auto w) { return !w.empty(); }) |
+      vws::transform([](auto w) { return str2tok(w); }) | vws::join |
+      rng::to<std::vector>();
+  return tokens;
+}
 
 static void updateState(std::vector<Token> &tokens, State from, State to) {
   if (from == State::eConstChar &&
@@ -76,7 +162,8 @@ static auto getTable() {
   return table;
 }
 
-std::vector<Token> semanticTransform(std::vector<Token> inputTokens) {
+std::vector<Token> tokenize(std::string_view sv) {
+  auto inputTokens = tokenizeInner(sv);
   const auto table = getTable();
 
   std::vector<Token> tokens{};
@@ -84,12 +171,13 @@ std::vector<Token> semanticTransform(std::vector<Token> inputTokens) {
   for (auto token : inputTokens) {
     auto prevStateIter = table.find(prevState);
     if (prevStateIter == table.end())
-      throw std::runtime_error{"Invalid state"};
+      throw std::runtime_error{fmt::format("Invalid state: {}", prevState)};
 
     auto &transitions = prevStateIter->second;
     auto nextStateIter = transitions.find(token);
     if (nextStateIter == transitions.end())
-      throw std::runtime_error{"Unknown transition"};
+      throw std::runtime_error{
+          fmt::format("Unknown transition from {} by {}", prevState, token)};
 
     auto nextState = nextStateIter->second;
     updateState(tokens, prevState, nextState);

@@ -50,8 +50,8 @@ QDecomp QDecomp::GetQCombined(const QDecomp &t1, const QDecomp &t2) {
 }
 
 bool testqual(std::string_view sv1, std::string_view sv2) {
-  auto tok1 = l1::semanticTransform(l1::tokenize(sv1));
-  auto tok2 = l1::semanticTransform(l1::tokenize(sv2));
+  auto tok1 = l1::tokenize(sv1);
+  auto tok2 = l1::tokenize(sv2);
 
   auto t1 = l1::QDecomp::Get(tok1);
   auto t2 = l1::QDecomp::Get(tok2);
