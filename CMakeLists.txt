@@ -16,17 +16,23 @@ project(cpp-master
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+include(cmake/CPM.cmake)
 include(cmake/cmake-flags.cmake)
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-)
 
-FetchContent_MakeAvailable(googletest)
+CPMAddPackage("gh:ericniebler/range-v3#0.12.0")
+CPMAddPackage("gh:fmtlib/fmt#11.0.2")
+CPMAddPackage(
+  NAME googletest
+  GITHUB_REPOSITORY google/googletest
+  GIT_TAG release-1.12.1
+  VERSION 1.12.1
+  OPTIONS "INSTALL_GTEST OFF"
+)
 
 add_library(cpp-master-settings INTERFACE)
 target_compile_features(cpp-master-settings INTERFACE cxx_std_23)
+target_link_libraries(cpp-master-settings INTERFACE range-v3)
+target_link_libraries(cpp-master-settings INTERFACE fmt)
 apply_compiler_flags(cpp-master-settings INTERFACE)
 
 enable_testing()

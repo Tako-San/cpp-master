@@ -1,125 +1,63 @@
-#include <cstdint>
-#include <iostream>
-#include <list>
-#include <span>
-#include <stdexcept>
-#include <string_view>
+#include <cstdio>
 #include <vector>
-#include <format>
 
-enum class Token : std::uint8_t { eConst, eChar, eArr, ePtr, eEOF };
+#include <fmt/core.h>
+#include <fmt/ranges.h>
 
-auto tokenize(std::string_view sv) {
-  auto start = sv.find_first_not_of(" \t\n");
-  if (start == std::string_view::npos)
-    return std::vector<Token>{};
-  sv.remove_prefix(start);
+#include <range/v3/all.hpp>
 
-  if (sv.contains("constchar") || sv.contains("charconst"))
-    throw std::runtime_error{"Error: " + std::string(sv)};
+#include "conv-qual.hh"
+#include "tokenizing.hh"
 
-  std::vector<Token> tokens{};
+namespace l1 {
+QDecomp QDecomp::GetQCombined(const QDecomp &t1, const QDecomp &t2) {
+  auto rp3 = vws::zip_with(
+      [](auto p1, auto p2) {
+        if (p2 == P::eArr)
+          return P::eArr;
+        return p1;
+      },
+      t1.p, t2.p);
 
-  using namespace std::literals;
-  while (!sv.empty()) {
-    std::string_view word{};
-    if (word = "const"; sv.starts_with(word))
-      tokens.push_back(Token::eConst);
-    else if (word = "char"; sv.starts_with(word))
-      tokens.push_back(Token::eChar);
-    else if (word = "[]"; sv.starts_with(word))
-      tokens.push_back(Token::eArr);
-    else if (word = "*"; sv.starts_with(word))
-      tokens.push_back(Token::ePtr);
-    else
-      throw std::runtime_error{"Unknown token: " + std::string(sv)};
+  auto rcv3 = vws::zip_with(
+      [](auto cv1, auto cv2) {
+        if (cv1 == CV::eConst)
+          return CV::eConst;
+        if (cv2 == CV::eConst)
+          return CV::eConst;
+        return CV::eNonConst;
+      },
+      t1.cv, t2.cv);
 
-    sv.remove_prefix(word.size());
-    auto pos = sv.find_first_not_of(" \t\n");
-    if (pos == std::string_view::npos)
-      break;
-    sv.remove_prefix(pos);
-  }
+  auto reverse = vws::zip(t1.cv, t2.cv, rcv3, t1.p, t2.p, rp3) | vws::reverse;
+  auto pos = rng::find_if(reverse, [](const auto &t) {
+    const auto &[cv1, cv2, cv3, p1, p2, p3] = t;
+    return (cv3 != cv1) || (cv3 != cv2) || (p3 != p1) || (p3 != p2);
+  });
 
-  return tokens;
+  if (pos != reverse.end())
+    pos = std::next(pos);
+
+  auto cst = rng::subrange(reverse.begin(), pos) |
+             vws::transform([](const auto &t) { return std::get<2>(t); });
+  auto mut = rng::subrange(pos, reverse.end()) |
+             vws::transform([](const auto &) { return CV::eConst; });
+
+  return QDecomp{
+      .cv = vws::concat(cst, mut) | vws::reverse | rng::to<std::vector<CV>>,
+      .p = rp3 | rng::to<std::vector<P>>,
+  };
 }
 
-auto tok2str(auto tok) {
-  switch (tok) {
-  case Token::eConst:
-    return "const";
-  case Token::eChar:
-    return "char";
-  case Token::eArr:
-    return "[]";
-  case Token::ePtr:
-    return "*";
-  case Token::eEOF:
-    return "EOF";
-  default:
-    throw std::runtime_error{"Unknown token"};
-  }
-  return "EOF";
-};
+bool testqual(std::string_view sv1, std::string_view sv2) {
+  auto tok1 = l1::tokenize(sv1);
+  auto tok2 = l1::tokenize(sv2);
 
-void print(std::span<Token> tokens) {
-  for (auto tok : tokens)
-    std::cout << tok2str(tok) << " ";
-  std::cout << std::endl;
+  auto t1 = l1::QDecomp::Get(tok1);
+  auto t2 = l1::QDecomp::Get(tok2);
+  auto t3 = l1::QDecomp::GetQCombined(t1, t2);
+
+  return t2.cv == t3.cv && t3.p == t3.p;
 }
 
-enum class CVQual : std::uint8_t { eConst, eNone };
-enum class P : std::uint8_t { ePtr, eArr };
-
-class QDecomp final {
-public:
-  QDecomp() = default;
-  QDecomp(std::span<CVQual> cvq, std::span<P> p)
-      : cvq_(cvq.begin(), cvq.end()), p_(p.begin(), p.end()){};
-
-private:
-  std::vector<CVQual> cvq_;
-  std::vector<P> p_;
-
-public:
-  static QDecomp getQualCombinedType(const QDecomp &t1, const QDecomp &t2) {
-    if (t1.cvq_.size() != t2.cvq_.size())
-      throw std::runtime_error{"cvq sizes are not equal"};
-    if (t1.p_.size() != t2.p_.size())
-      throw std::runtime_error{"p sizes are not equal"};
-    QDecomp t3{};
-
-    return t3;
-  }
-
-  static QDecomp getQDecomp(std::span<Token> tokens) {
-    if (tokens.empty())
-      throw std::runtime_error{"Not enough tokens"};
-
-    std::list<CVQual> cvq;
-    if (tokens[0] == Token::eConst)
-      cvq.push_front(CVQual::eConst);
-
-    return {};
-  }
-};
-
-bool testqual(std::string_view from, std::string_view to) {
-  /* code */
-  return false;
-}
-
-int main() try {
-  std::string str{"  const   char *const* "};
-  auto res = tokenize(str);
-  print(res);
-
-  char test[100] = "heloooooooooooooooooooooooo woooooooooooooooorld";
-  test[10] = 0;
-  std::cout << std::format("{}.", test) << std::endl;
-
-  return 0;
-} catch (std::runtime_error &e) {
-  std::cerr << e.what() << std::endl;
-  return 1;
-}
+} // namespace l1
