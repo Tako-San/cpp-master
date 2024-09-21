@@ -8,7 +8,7 @@ target_link_libraries(l1-tokenizing-test
     l1-tokenizing
 )
 
-add_library(l1-conv-qual conv-qual.cc)
+add_library(l1-conv-qual conv-qual.cc conv-qual.hh)
 target_link_libraries(l1-conv-qual PUBLIC cpp-master-settings l1-tokenizing)
 
 add_executable(l1-conv-qual-test conv-qual-test.cc)

@@ -39,8 +39,9 @@ static void updateState(std::vector<Token> &tokens, State from, State to) {
     tokens.push_back(Token::eChar);
     tokens.push_back(Token::eNonConst);
   } else if (from == State::eArr && to == State::eFinish) {
+    auto cv = tokens.back();
     tokens.push_back(Token::eArr);
-    tokens.push_back(Token::eConst);
+    tokens.push_back(cv);
   } else if (from == State::ePtr &&
              (to == State::ePtr || to == State::eArr || to == State::eFinish)) {
     tokens.push_back(Token::ePtr);
