@@ -6,6 +6,8 @@
 
 #include <fmt/ranges.h>
 
+namespace l1 {
+
 namespace rng = ranges;
 namespace vws = rng::views;
 
@@ -105,7 +107,10 @@ public:
 
 using COWString = BasicCOWString<char>;
 
+} // namespace l1
+
 int main() {
+  using namespace l1;
   COWString str0{"  Hello  world!  My name   is     Dio!"};
   COWString str1 = str0;
   str1.setChar(0, '!');
