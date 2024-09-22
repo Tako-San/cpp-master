@@ -12,15 +12,13 @@ namespace l1 {
 namespace rng = ranges;
 namespace vws = rng::views;
 
-template <typename CharT, typename Traits = std::char_traits<CharT>,
-          typename Alloc = std::allocator<CharT>>
+template <typename CharT, typename Traits = std::char_traits<CharT>>
 class BasicCOWString final {
 private:
-  using COWStringT = BasicCOWString<CharT, Traits, Alloc>;
-  using StringT = std::basic_string<CharT, Traits, Alloc>;
+  using COWStringT = BasicCOWString<CharT, Traits>;
+  using StringT = std::basic_string<CharT, Traits>;
   using StringViewT = std::basic_string_view<CharT, Traits>;
 
-  Alloc allocator_;
   std::shared_ptr<StringT> str_;
 
 public:
@@ -40,14 +38,13 @@ public:
 private:
   void detach() {
     if (!str_.unique())
-      str_ = std::allocate_shared<StringT>(allocator_, *str_);
+      str_ = std::make_shared<StringT>(*str_);
   }
 
 public:
   template <typename... Args>
   explicit BasicCOWString(Args &&...args)
-      : str_(std::allocate_shared<StringT>(allocator_,
-                                           std::forward<Args>(args)...)) {}
+      : str_(std::make_shared<StringT>(std::forward<Args>(args)...)) {}
   BasicCOWString(const COWStringT &str) = default;
   BasicCOWString(COWStringT &&str) = default;
 
@@ -74,11 +71,10 @@ public:
   }
 };
 
-template <typename CharT, typename Traits = std::char_traits<CharT>,
-          typename Alloc = std::allocator<CharT>>
+template <typename CharT, typename Traits = std::char_traits<CharT>>
 class COWTokenizer final {
 public:
-  using COWStringT = BasicCOWString<CharT, Traits, Alloc>;
+  using COWStringT = BasicCOWString<CharT, Traits>;
   using StringViewT = std::basic_string_view<CharT, Traits>;
 
 private:
