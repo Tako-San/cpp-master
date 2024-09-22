@@ -64,8 +64,8 @@ public:
     return str_->find(sv, pos);
   }
 
-  CharT getChar(StringT::size_type idx) const { return str_->at(idx); }
-  void setChar(StringT::size_type idx, CharT c) {
+  CharT getChar(size_type idx) const { return str_->at(idx); }
+  void setChar(size_type idx, CharT c) {
     detach();
     str_->at(idx) = c;
   }
@@ -80,7 +80,7 @@ public:
 private:
   CharT delim_;
   COWStringT str_;
-  std::size_t begin_;
+  COWStringT::size_type begin_;
 
 public:
   COWTokenizer(const COWStringT &str, CharT delim)
