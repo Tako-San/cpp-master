@@ -20,6 +20,21 @@ private:
   Alloc allocator_;
   std::shared_ptr<StringT> str_;
 
+public:
+  using traits_type = StringT::traits_type;
+  using value_type = StringT::value_type;
+  using allocator_type = StringT::allocator_type;
+
+  using size_type = StringT::size_type;
+  using difference_type = StringT::difference_type;
+
+  using reference = StringT::reference;
+  using const_reference = StringT::const_reference;
+
+  using pointer = StringT::pointer;
+  using const_pointer = StringT::const_pointer;
+
+private:
   void detach() {
     if (!str_.unique())
       str_ = std::allocate_shared<StringT>(allocator_, *str_);
@@ -38,9 +53,16 @@ public:
 
   auto empty() const { return str_->empty(); }
   auto size() const { return str_->size(); }
-  auto data() const { return StringViewT{*str_}; }
 
-  auto find(StringViewT s) const { return str_->find(s); }
+  const_pointer data() const { return str_->data(); }
+  StringT str() const { return *str_; }
+
+  template <typename StringViewLike>
+    requires std::is_convertible_v<const StringViewLike &, StringViewT>
+  auto find(const StringViewLike &s, size_type pos = 0) const {
+    StringViewT sv = s;
+    return str_->find(sv, pos);
+  }
 
   CharT getChar(StringT::size_type idx) const { return str_->at(idx); }
   void setChar(StringT::size_type idx, CharT c) {
@@ -66,7 +88,7 @@ public:
       : delim_(delim), str_(str), begin_(0) {}
 
   auto get() {
-    auto str = str_.data();
+    StringViewT str = str_.data();
     auto begin = str.find_first_not_of(delim_, begin_);
     if (begin == str.npos)
       return StringViewT{};
