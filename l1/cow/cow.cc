@@ -17,12 +17,19 @@ private:
   using StringT = std::basic_string<CharT, Traits, Alloc>;
   using StringViewT = std::basic_string_view<CharT, Traits>;
 
-  std::shared_ptr<const StringT> str_;
+  Alloc allocator_;
+  std::shared_ptr<StringT> str_;
+
+  void detach() {
+    if (!str_.unique())
+      str_ = std::allocate_shared<StringT>(allocator_, *str_);
+  }
 
 public:
   template <typename... Args>
-  BasicCOWString(Args &&...args)
-      : str_(std::make_shared<const StringT>(std::forward<Args>(args)...)) {}
+  explicit BasicCOWString(Args &&...args)
+      : str_(std::allocate_shared<StringT>(allocator_,
+                                           std::forward<Args>(args)...)) {}
   BasicCOWString(const COWStringT &str) = default;
   BasicCOWString(COWStringT &&str) = default;
 
