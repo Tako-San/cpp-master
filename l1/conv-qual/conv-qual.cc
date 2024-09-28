@@ -57,7 +57,7 @@ bool testqual(std::string_view sv1, std::string_view sv2) {
   auto t2 = l1::QDecomp::Get(tok2);
   auto t3 = l1::QDecomp::GetQCombined(t1, t2);
 
-  return t2.cv == t3.cv && t3.p == t3.p;
+  return t2.cv == t3.cv;
 }
 
 } // namespace l1

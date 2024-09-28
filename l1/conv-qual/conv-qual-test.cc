@@ -27,6 +27,7 @@ TEST(ConvQual, Weird) {
   EXPECT_EQ(l1::testqual(#t1, #t2), (std::is_convertible_v<t1, t2>))
 
 TEST(ConvQual, Test) {
+  CQ_CHECK(char[], char *);
 
   CQ_CHECK(char const **, char **);
   CQ_CHECK(char **, char const **);
