@@ -28,6 +28,13 @@ CPMAddPackage(
   VERSION 1.12.1
   OPTIONS "INSTALL_GTEST OFF"
 )
+CPMAddPackage(
+  NAME Boost
+  VERSION 1.84.0
+  URL https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.xz
+  URL_HASH SHA256=2e64e5d79a738d0fa6fb546c6e5c2bd28f88d268a2a080546f74e5ff98f29d0e
+  OPTIONS "BOOST_ENABLE_CMAKE ON" "BOOST_INCLUDE_LIBRARIES hana"
+)
 
 add_library(cpp-master-settings INTERFACE)
 target_compile_features(cpp-master-settings INTERFACE cxx_std_23)
@@ -38,3 +45,4 @@ apply_compiler_flags(cpp-master-settings INTERFACE)
 enable_testing()
 
 add_subdirectory(l1)
+add_subdirectory(l6)
